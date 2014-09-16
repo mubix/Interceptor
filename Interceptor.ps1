@@ -301,7 +301,7 @@ function Send-ServerHttpRequest([string] $URI, [string] $httpMethod,[byte[]] $re
 		$request.KeepAlive = $false
 		$request.ProtocolVersion = [System.Net.Httpversion]::version11 
 		$request.ServicePoint.ConnectionLimit = 1
-		if($proxy = $null) { $request.Proxy = [System.Net.GlobalProxySelection]::GetEmptyWebProxy() }
+		if($proxy -eq $null) { $request.Proxy = [System.Net.GlobalProxySelection]::GetEmptyWebProxy() }
 		else { $request.Proxy = $proxy }
 		$request.Method = $httpMethod
 		$request.AllowAutoRedirect = $false 
@@ -376,7 +376,7 @@ function Send-ServerHttpRequest([string] $URI, [string] $httpMethod,[byte[]] $re
 	
 }#Proxied Get
 
-function Get-ClientHttpRequest([System.Net.Sockets.TcpClient] $client)
+function Get-ClientHttpRequest([System.Net.Sockets.TcpClient] $client, [System.Net.WebProxy] $proxy)
 {
 	
 	Try
@@ -434,7 +434,7 @@ function Get-ClientHttpRequest([System.Net.Sockets.TcpClient] $client)
 			
 			$secureURI = "https://" + $domainParse[0] + $SSLmethodParse[1]
 			
-			[byte[]] $byteResponse =  Send-ServerHttpRequest $secureURI $SSLmethodParse[0] $sslbyteClientRequest $Global:proxy
+			[byte[]] $byteResponse =  Send-ServerHttpRequest $secureURI $SSLmethodParse[0] $sslbyteClientRequest $proxy
 			
 			if ($byteResponse -eq $null) {throw "Error: Null Response"}
 			$sslStream.Write($byteResponse, 0, $byteResponse.Length)
@@ -444,7 +444,7 @@ function Get-ClientHttpRequest([System.Net.Sockets.TcpClient] $client)
 		Else
 		{
 			Write-Host $requestString -Fore Cyan 
-			[byte[]] $proxiedResponse = Send-ServerHttpRequest $methodParse[1] $methodParse[0] $byteClientRequest $Global:proxy
+			[byte[]] $proxiedResponse = Send-ServerHttpRequest $methodParse[1] $methodParse[0] $byteClientRequest $proxy
 			if ($proxiedResponse -eq $null) {throw "Error: Null Response"}			
 			$clientStream.Write($proxiedResponse, 0, $proxiedResponse.Length)	
 		
@@ -511,14 +511,16 @@ function Main()
 	[Console]::WriteLine("Listening on $port")
 	$client = New-Object System.Net.Sockets.TcpClient
 	
+	
+	
 	if($ProxyServer -ne $null)
 	{
-		$Global:proxy = New-Object System.Net.WebProxy($ProxyServer, $ProxyPort)
+		$proxy = New-Object System.Net.WebProxy($ProxyServer, $ProxyPort)
 		[Console]::WriteLine("Using Proxy Server $ProxyServer : $ProxyPort")
 	}
 	else
 	{
-		$Global:proxy = $null
+		$proxy = $null
 		# If you are going Direct.  You need this to be null, or HTTPWebrequest loops...
 		[Console]::WriteLine("Using Direct Internet Connection")
 	}
@@ -529,7 +531,7 @@ function Main()
 		
 		if($client -ne $null)
 		{
-			Get-ClientHttpRequest $client	
+			Get-ClientHttpRequest $client $proxy
 		}
 		
 	}
@@ -537,3 +539,4 @@ function Main()
 }
 
 Main
+
