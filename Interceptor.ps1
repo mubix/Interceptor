@@ -12,7 +12,7 @@ License: BSD 3-Clause
 Required Dependencies: None
 Optional Dependencies: None
 Version: 1.3.10
-Release Date: 09162014 0408 
+Release Date: 09172014 0734 
 Deployment: iex (New-Object Net.WebClient).DownloadString(“http://bit.ly/1upejwC”)
 
 .DESCRIPTION
