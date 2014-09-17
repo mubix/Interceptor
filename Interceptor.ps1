@@ -220,7 +220,7 @@ function Receive-ServerHttpResponse ([System.Net.WebResponse] $response)
 		
 		[byte[]] $rawHeaderBytes = [System.Text.Encoding]::UTF8.GetBytes($rstring)
 		
-		[Console]::WriteLine($rstring) #Logs Response Headers to Screen
+		Write-Host $rstring 
 		
 		[void][byte[]] $outdata 
 		$tempMemStream = New-Object System.IO.MemoryStream
@@ -376,7 +376,7 @@ function Send-ServerHttpRequest([string] $URI, [string] $httpMethod,[byte[]] $re
 	
 }#Proxied Get
 
-function Get-ClientHttpRequest([System.Net.Sockets.TcpClient] $client, [System.Net.WebProxy] $proxy)
+function Receive-ClientHttpRequest([System.Net.Sockets.TcpClient] $client, [System.Net.WebProxy] $proxy)
 {
 	
 	Try
@@ -407,7 +407,8 @@ function Get-ClientHttpRequest([System.Net.Sockets.TcpClient] $client, [System.N
 			$clientStream.Write($connectSpoof, 0, $connectSpoof.Length)	
 			$clientStream.Flush()
 			$sslStream = New-Object System.Net.Security.SslStream($clientStream , $false)
-			$sslStream.ReadTimeout = 1000
+			$sslStream.ReadTimeout = 5000
+			$sslStream.WriteTimeout = 8000
 			$sslcertfake = (Get-ChildItem Cert:\LocalMachine\My | Where-Object {$_.Subject -eq "CN=" + $domainParse[0] })
 			
 			if ($sslcertfake -eq $null)
@@ -415,7 +416,7 @@ function Get-ClientHttpRequest([System.Net.Sockets.TcpClient] $client, [System.N
 				$sslcertfake =  Invoke-CreateCertificate $domainParse[0] $false
 			}
 			
-			$sslStream.AuthenticateAsServer($sslcertfake, $false, [System.Security.Authentication.SslProtocols]::Ssl3 , $false)
+			$sslStream.AuthenticateAsServer($sslcertfake, $false, [System.Security.Authentication.SslProtocols]::Ssl3, $false)
 			
 			$sslbyteArray = new-object System.Byte[] 32768
 			[void][byte[]] $sslbyteClientRequest
@@ -427,7 +428,7 @@ function Get-ClientHttpRequest([System.Net.Sockets.TcpClient] $client, [System.N
 			 } while ( $clientStream.DataAvailable  )
 			
 			$SSLRequest = [System.Text.Encoding]::UTF8.GetString($sslbyteClientRequest)
-			Write-Host $SSLRequest -Fore Yellow 
+			Write-Host $SSLRequest -Fore Yellow
 			
 			[string[]] $SSLrequestArray = ($SSLRequest -split '[\r\n]') |? {$_} 
 			[string[]] $SSLmethodParse = $SSLrequestArray[0] -split " "
@@ -443,7 +444,7 @@ function Get-ClientHttpRequest([System.Net.Sockets.TcpClient] $client, [System.N
 		}#End CONNECT/SSL Processing
 		Else
 		{
-			Write-Host $requestString -Fore Cyan 
+			Write-Host $requestString -Fore Cyan
 			[byte[]] $proxiedResponse = Send-ServerHttpRequest $methodParse[1] $methodParse[0] $byteClientRequest $proxy
 			if ($proxiedResponse -eq $null) {throw "Error: Null Response"}			
 			$clientStream.Write($proxiedResponse, 0, $proxiedResponse.Length)	
@@ -532,7 +533,7 @@ function Main()
 		$client = $listener.AcceptTcpClient()
 		if($client -ne $null)
 		{
-			Get-ClientHttpRequest $client $proxy
+			Receive-ClientHttpRequest $client $proxy
 		}
 		
 	}
@@ -541,4 +542,3 @@ function Main()
 }
 
 Main
-
