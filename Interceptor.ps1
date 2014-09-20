@@ -11,8 +11,8 @@ Author: Casey Smith, Twitter: @subTee
 License: BSD 3-Clause
 Required Dependencies: None
 Optional Dependencies: None
-Version: 1.3.10
-Release Date: 09172014 0734 
+Version: 1.3.20
+Release Date: 09202014 0840
 Deployment: iex (New-Object Net.WebClient).DownloadString(“http://bit.ly/1upejwC”)
 
 .DESCRIPTION
@@ -218,7 +218,7 @@ function Receive-ServerHttpResponse ([System.Net.WebResponse] $response)
 		
 		$rstring = $rawProtocolVersion + " " + $rawStatusCode + " " + $rawStatusDescription + "`r`n" + $rawHeadersString.ToString() + "`r`n"
 		
-		[byte[]] $rawHeaderBytes = [System.Text.Encoding]::UTF8.GetBytes($rstring)
+		[byte[]] $rawHeaderBytes = [System.Text.Encoding]::Ascii.GetBytes($rstring)
 		
 		Write-Host $rstring 
 		
@@ -403,12 +403,12 @@ function Receive-ClientHttpRequest([System.Net.Sockets.TcpClient] $client, [Syst
 		{
 			[string[]] $domainParse = $methodParse[1].Split(":")
 			
-			$connectSpoof = [System.Text.Encoding]::UTF8.GetBytes("HTTP/1.1 200 Connection Established`r`nTimeStamp: " + [System.DateTime]::Now.ToString() + "`r`n`r`n")
+			$connectSpoof = [System.Text.Encoding]::Ascii.GetBytes("HTTP/1.1 200 Connection Established`r`nTimeStamp: " + [System.DateTime]::Now.ToString() + "`r`n`r`n")
 			$clientStream.Write($connectSpoof, 0, $connectSpoof.Length)	
 			$clientStream.Flush()
 			$sslStream = New-Object System.Net.Security.SslStream($clientStream , $false)
-			$sslStream.ReadTimeout = 5000
-			$sslStream.WriteTimeout = 8000
+			$sslStream.ReadTimeout = 500
+			$sslStream.WriteTimeout = 500
 			$sslcertfake = (Get-ChildItem Cert:\LocalMachine\My | Where-Object {$_.Subject -eq "CN=" + $domainParse[0] })
 			
 			if ($sslcertfake -eq $null)
@@ -417,7 +417,7 @@ function Receive-ClientHttpRequest([System.Net.Sockets.TcpClient] $client, [Syst
 			}
 			
 			$sslStream.AuthenticateAsServer($sslcertfake, $false, [System.Security.Authentication.SslProtocols]::Tls, $false)
-			
+			Write-Host $sslStream.CipherAlgorithm -Fore Green
 			$sslbyteArray = new-object System.Byte[] 32768
 			[void][byte[]] $sslbyteClientRequest
 			
@@ -504,7 +504,10 @@ function Main()
 		#Get registry key value named "Isolation"
 		$value = Get-ItemProperty -Path $Keypath -Name "Isolation"  -ErrorAction SilentlyContinue
 		Set-ItemProperty -Path $Keypath -Name "Isolation" -Value "PMIL"
-		
+		#Disable RC4 Cipher 
+		md "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 128" | Out-Null
+		md "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 128/128" | Out-Null
+		new-itemproperty -path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 128/128" -name "Enabled" -value 0 -PropertyType "Dword" | Out-Null
 	}
 	
 	$listener.Start()
