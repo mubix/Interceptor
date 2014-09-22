@@ -11,7 +11,7 @@ Author: Casey Smith, Twitter: @subTee
 License: BSD 3-Clause
 Required Dependencies: None
 Optional Dependencies: None
-Version: 1.3.20
+Version: 1.3.21
 Release Date: 09202014 0840
 Deployment: iex (New-Object Net.WebClient).DownloadString(“http://bit.ly/1upejwC”)
 
@@ -184,7 +184,7 @@ function Receive-ServerHttpResponse ([System.Net.WebResponse] $response)
 	#Returns a Byte[] from HTTPWebRequest, also for HttpWebRequest Exception Handling
 	Try
 	{
-		[string]$rawProtocolVersion = [string]("HTTP/" + $response.ProtocolVersion)
+		[string]$rawProtocolVersion = "HTTP/" + $response.ProtocolVersion
 		[int]$rawStatusCode = [int]$response.StatusCode
 		[string]$rawStatusDescription = [string]$response.StatusDescription
 		$rawHeadersString = New-Object System.Text.StringBuilder 
@@ -268,11 +268,12 @@ function Receive-ServerHttpResponse ([System.Net.WebResponse] $response)
 				
 			}
 		}
-		
-		#Combine Header Bytes and Entity Bytes 
 		[byte[]] $rv = New-Object Byte[] ($rawHeaderBytes.Length + $outdata.Length)
-		[System.Buffer]::BlockCopy( $rawHeaderBytes, 0, $rv, 0, $rawHeaderBytes.Length )
-		[System.Buffer]::BlockCopy( $outdata, 0, $rv, $rawHeaderBytes.Length, $outdata.Length )
+		#Combine Header Bytes and Entity Bytes 
+		
+		[System.Buffer]::BlockCopy( $rawHeaderBytes, 0, $rv, 0, $rawHeaderBytes.Length)
+		[System.Buffer]::BlockCopy( $outdata, 0, $rv, $rawHeaderBytes.Length, $outdata.Length ) 
+	
 		
 		$tempMemStream.Close()
 		$response.Close()
@@ -417,7 +418,7 @@ function Receive-ClientHttpRequest([System.Net.Sockets.TcpClient] $client, [Syst
 			}
 			
 			$sslStream.AuthenticateAsServer($sslcertfake, $false, [System.Security.Authentication.SslProtocols]::Tls, $false)
-			Write-Host $sslStream.CipherAlgorithm -Fore Green
+			
 			$sslbyteArray = new-object System.Byte[] 32768
 			[void][byte[]] $sslbyteClientRequest
 			
@@ -427,7 +428,7 @@ function Receive-ClientHttpRequest([System.Net.Sockets.TcpClient] $client, [Syst
 				$sslbyteClientRequest += $sslbyteArray[0..($NumBytesRead - 1)]  
 			 } while ( $clientStream.DataAvailable  )
 			
-			$SSLRequest = [System.Text.Encoding]::UTF8.GetString($sslbyteClientRequest)
+			$SSLRequest = [System.Text.Encoding]::Ascii.GetString($sslbyteClientRequest)
 			Write-Host $SSLRequest -Fore Yellow
 			
 			[string[]] $SSLrequestArray = ($SSLRequest -split '[\r\n]') |? {$_} 
@@ -437,8 +438,15 @@ function Receive-ClientHttpRequest([System.Net.Sockets.TcpClient] $client, [Syst
 			
 			[byte[]] $byteResponse =  Send-ServerHttpRequest $secureURI $SSLmethodParse[0] $sslbyteClientRequest $proxy
 			
-			if ($byteResponse -eq $null) {throw "Error: Null Response"}
-			$sslStream.Write($byteResponse, 0, $byteResponse.Length)
+			if($byteResponse[0] -eq '0x00')
+			{
+				$sslStream.Write($byteResponse, 1, $byteResponse.Length - 1)
+			}
+			else
+			{
+				$sslStream.Write($byteResponse, 0, $byteResponse.Length )
+			}
+			
 			
 			
 		}#End CONNECT/SSL Processing
@@ -446,16 +454,21 @@ function Receive-ClientHttpRequest([System.Net.Sockets.TcpClient] $client, [Syst
 		{
 			Write-Host $requestString -Fore Cyan
 			[byte[]] $proxiedResponse = Send-ServerHttpRequest $methodParse[1] $methodParse[0] $byteClientRequest $proxy
-			if ($proxiedResponse -eq $null) {throw "Error: Null Response"}			
-			$clientStream.Write($proxiedResponse, 0, $proxiedResponse.Length)	
-		
+			if($proxiedResponse[0] -eq '0x00')
+			{
+				$clientStream.Write($proxiedResponse, 1, $proxiedResponse.Length - 1 )	
+			}
+			else
+			{
+				$clientStream.Write($proxiedResponse, 0, $proxiedResponse.Length )	
+			}
+			
 		}#End Http Proxy
 		
 		
 	}# End HTTPProcessing Block
 	Catch
 	{
-		
 		Write-Verbose $_.Exception.Message
 		$client.Close()
 	}
@@ -495,7 +508,7 @@ function Main()
 	netsh advfirewall firewall delete rule name="Interceptor Proxy $port" | Out-Null #First Run May Throw Error...Thats Ok..:)
 	netsh advfirewall firewall add rule name="Interceptor Proxy $port" dir=in action=allow protocol=TCP localport=$port | Out-Null
 	
-	#There is an issue in Windows 8.1 with Loopback isolation, And IE EPM.  Turn them both Off.
+	#There is are issues in Windows 8.1 with Loopback Isolation, IE EPM, and RC4 Cipher.
 	if ((Get-WmiObject Win32_OperatingSystem).Version -match "6.3")
 	{
 		CheckNetIsolation LoopbackExempt -a -n=windows_ie_ac_001
@@ -513,7 +526,7 @@ function Main()
 	$listener.Start()
 	[Console]::WriteLine("Listening on $port")
 	$client = New-Object System.Net.Sockets.TcpClient
-	
+	$client.NoDelay = $true
 	
 	
 	if($ProxyServer)
