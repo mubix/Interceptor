@@ -11,8 +11,8 @@ Author: Casey Smith, Twitter: @subTee
 License: BSD 3-Clause
 Required Dependencies: None
 Optional Dependencies: None
-Version: 1.3.21
-Release Date: 09202014 0840
+Version: 1.3.22
+Release Date: 1731 09222014
 Deployment: iex (New-Object Net.WebClient).DownloadString(“http://bit.ly/1upejwC”)
 
 .DESCRIPTION
@@ -66,9 +66,36 @@ Param(
   [int]$ProxyPort,
   
   [Parameter(Mandatory=$False,Position=3)]
-  [bool]$Tamper
+  [bool]$Tamper,
+  
+  [Parameter(Mandatory=$False,Position=3)]
+  [bool]$HostCA
   
 )
+
+function Host-CertificateAuthority([string] $issuedBy)
+{
+	#Thanks to @obscuresec for this elegant Web Host
+	#Pulls CA Certificate from Store and Writes Directly back to Mobile Device
+	# example: http://localhost:8082/i.cer
+	
+	$Hso = New-Object Net.HttpListener
+	$Hso.Prefixes.Add("http://+:8082/")
+	$Hso.Start()
+	While ($Hso.IsListening) {
+		$HC = $Hso.GetContext()
+		$HRes = $HC.Response
+		$HRes.Headers.Add("Content-Type","text/plain")
+		$cert = Get-ChildItem cert:\LocalMachine\Root | where { $_.Issuer -match $issuedBy }
+		$type = [System.Security.Cryptography.X509Certificates.X509ContentType]::cert
+		$Buf = $cert.Export($type)
+		$HRes.ContentLength64 = $Buf.Length
+		$HRes.OutputStream.Write($Buf,0,$Buf.Length)
+		$HRes.Close()
+}
+$Hso.Stop()
+}
+
 function Invoke-RemoveCertificates([string] $issuedBy)
 {
 	$certs = Get-ChildItem cert:\LocalMachine\My | where { $_.Issuer -match $issuedBy }
@@ -481,7 +508,13 @@ function Receive-ClientHttpRequest([System.Net.Sockets.TcpClient] $client, [Syst
 
 function Main()
 {	
-	
+	if($HostCA)
+	{
+		netsh advfirewall firewall delete rule name="Interceptor Proxy 8082" | Out-Null #First Run May Throw Error...Thats Ok..:)
+		netsh advfirewall firewall add rule name="Interceptor Proxy 8082" dir=in action=allow protocol=TCP localport=$port | Out-Null
+		Host-CertificateAuthority("__Interceptor_Trusted_Root")
+		
+	}
 	
 	# Create And Install Trusted Root CA.
 	$CAcertificate = (Get-ChildItem Cert:\LocalMachine\My | Where-Object {$_.Subject -match "__Interceptor_Trusted_Root"  })
