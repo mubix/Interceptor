@@ -418,7 +418,7 @@ function Receive-ClientHttpRequest([System.Net.Sockets.TcpClient] $client, [Syst
 			}
 			
 			$sslStream.AuthenticateAsServer($sslcertfake, $false, [System.Security.Authentication.SslProtocols]::Tls, $false)
-			
+			$sslStream.CipherAlgorithm -Fore Green
 			$sslbyteArray = new-object System.Byte[] 32768
 			[void][byte[]] $sslbyteClientRequest
 			
@@ -428,7 +428,7 @@ function Receive-ClientHttpRequest([System.Net.Sockets.TcpClient] $client, [Syst
 				$sslbyteClientRequest += $sslbyteArray[0..($NumBytesRead - 1)]  
 			 } while ( $clientStream.DataAvailable  )
 			
-			$SSLRequest = [System.Text.Encoding]::Ascii.GetString($sslbyteClientRequest)
+			$SSLRequest = [System.Text.Encoding]::UTF8.GetString($sslbyteClientRequest)
 			Write-Host $SSLRequest -Fore Yellow
 			
 			[string[]] $SSLrequestArray = ($SSLRequest -split '[\r\n]') |? {$_} 
