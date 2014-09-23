@@ -508,13 +508,7 @@ function Receive-ClientHttpRequest([System.Net.Sockets.TcpClient] $client, [Syst
 
 function Main()
 {	
-	if($HostCA)
-	{
-		netsh advfirewall firewall delete rule name="Interceptor Proxy 8082" | Out-Null #First Run May Throw Error...Thats Ok..:)
-		netsh advfirewall firewall add rule name="Interceptor Proxy 8082" dir=in action=allow protocol=TCP localport=$port | Out-Null
-		Host-CertificateAuthority("__Interceptor_Trusted_Root")
-		
-	}
+	
 	
 	# Create And Install Trusted Root CA.
 	$CAcertificate = (Get-ChildItem Cert:\LocalMachine\My | Where-Object {$_.Subject -match "__Interceptor_Trusted_Root"  })
@@ -524,6 +518,14 @@ function Main()
 	}
 	# Create Some Certificates Early to Speed up Capture. If you wanted to...
 	# You could Add Auto Proxy Configuration here too.
+	
+	if($HostCA)
+	{
+		netsh advfirewall firewall delete rule name="Interceptor Proxy 8082" | Out-Null #First Run May Throw Error...Thats Ok..:)
+		netsh advfirewall firewall add rule name="Interceptor Proxy 8082" dir=in action=allow protocol=TCP localport=8082 | Out-Null
+		Host-CertificateAuthority("__Interceptor_Trusted_Root")
+		
+	}
 	
 	if($ListenPort)
 	{
