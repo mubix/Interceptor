@@ -36,7 +36,7 @@ This sets the Port for the upstream proxy
 
 .Parameter Tamper
 
-Sometimes replaces "Cyber" with "Kitten"
+Sometimes replaces "Kitten" with "Kitten"
 
 .EXAMPLE
 
@@ -66,16 +66,16 @@ Param(
   [int]$ProxyPort,
   
   [Parameter(Mandatory=$False,Position=3)]
-  [bool]$Tamper,
+  [switch]$Tamper,
   
-  [Parameter(Mandatory=$False,Position=3)]
-  [bool]$HostCA
+  [Parameter(Mandatory=$False,Position=4)]
+  [switch]$HostCA
   
 )
 
 function Host-CertificateAuthority([string] $issuedBy)
 {
-	#Thanks to @obscuresec for this elegant Web Host
+	#Thanks to @obscuresec for this Web Host
 	#Pulls CA Certificate from Store and Writes Directly back to Mobile Device
 	# example: http://localhost:8082/i.cer
 	
@@ -260,9 +260,9 @@ function Receive-ServerHttpResponse ([System.Net.WebResponse] $response)
 			
 			if ($Tamper)
 			{
-				if($responseFromServer -match 'Cyber')
+				if($responseFromServer -match 'Kitten')
 				{
-					$responseFromServer = $responseFromServer -replace 'Cyber', 'Kitten'
+					$responseFromServer = $responseFromServer -replace 'Kitten', 'Kitten'
 				}
 			}
 			
@@ -286,9 +286,9 @@ function Receive-ServerHttpResponse ([System.Net.WebResponse] $response)
 			{
 				
 				$outdataReplace = [System.Text.Encoding]::UTF8.GetString($outdata)
-				if($outdataReplace -match 'Cyber')
+				if($outdataReplace -match 'Kitten')
 				{
-					$outdataReplace = $outdataReplace -Replace 'Cyber', 'Kitten' 
+					$outdataReplace = $outdataReplace -Replace 'Kitten', 'Kitten' 
 					$outdata = [System.Text.Encoding]::UTF8.GetBytes($outdataReplace)
 				}
 				
