@@ -11,8 +11,8 @@ Author: Casey Smith, Twitter: @subTee
 License: BSD 3-Clause
 Required Dependencies: None
 Optional Dependencies: None
-Version: 1.3.22
-Release Date: 1731 09222014
+Version: 1.3.26
+Release Date: 2029 0926014
 Deployment: iex (New-Object Net.WebClient).DownloadString(“http://bit.ly/1upejwC”)
 
 .DESCRIPTION
