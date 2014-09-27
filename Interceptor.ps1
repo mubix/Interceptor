@@ -73,27 +73,31 @@ Param(
   
 )
 
-function Host-CertificateAuthority([string] $issuedBy)
+function Start-CertificateAuthority()
 {
 	#Thanks to @obscuresec for this Web Host
 	#Pulls CA Certificate from Store and Writes Directly back to Mobile Device
 	# example: http://localhost:8082/i.cer
+	Start-Job -ScriptBlock {
+			
+			$Hso = New-Object Net.HttpListener
+			$Hso.Prefixes.Add("http://+:8082/")
+			$Hso.Start()
+			While ($Hso.IsListening) {
+				$HC = $Hso.GetContext()
+				$HRes = $HC.Response
+				$HRes.Headers.Add("Content-Type","text/plain")
+				$cert = Get-ChildItem cert:\LocalMachine\Root | where { $_.Issuer -match "__Interceptor_Trusted_Root" }
+				$type = [System.Security.Cryptography.X509Certificates.X509ContentType]::cert
+				$Buf = $cert.Export($type)
+				$HRes.OutputStream.Write($Buf,0,$Buf.Length)
+				$HRes.Close()
+			}
+				
+			}
 	
-	$Hso = New-Object Net.HttpListener
-	$Hso.Prefixes.Add("http://+:8082/")
-	$Hso.Start()
-	While ($Hso.IsListening) {
-		$HC = $Hso.GetContext()
-		$HRes = $HC.Response
-		$HRes.Headers.Add("Content-Type","text/plain")
-		$cert = Get-ChildItem cert:\LocalMachine\Root | where { $_.Issuer -match $issuedBy }
-		$type = [System.Security.Cryptography.X509Certificates.X509ContentType]::cert
-		$Buf = $cert.Export($type)
-		$HRes.ContentLength64 = $Buf.Length
-		$HRes.OutputStream.Write($Buf,0,$Buf.Length)
-		$HRes.Close()
-}
-$Hso.Stop()
+	
+	
 }
 
 function Invoke-RemoveCertificates([string] $issuedBy)
@@ -523,7 +527,7 @@ function Main()
 	{
 		netsh advfirewall firewall delete rule name="Interceptor Proxy 8082" | Out-Null #First Run May Throw Error...Thats Ok..:)
 		netsh advfirewall firewall add rule name="Interceptor Proxy 8082" dir=in action=allow protocol=TCP localport=8082 | Out-Null
-		Host-CertificateAuthority("__Interceptor_Trusted_Root")
+		Start-CertificateAuthority
 		
 	}
 	
