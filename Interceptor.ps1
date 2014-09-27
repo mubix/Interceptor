@@ -36,7 +36,7 @@ This sets the Port for the upstream proxy
 
 .Parameter Tamper
 
-Sometimes replaces "Kitten" with "Kitten"
+Sometimes replaces "Cyber" with "Kitten"
 
 .EXAMPLE
 
@@ -264,9 +264,9 @@ function Receive-ServerHttpResponse ([System.Net.WebResponse] $response)
 			
 			if ($Tamper)
 			{
-				if($responseFromServer -match 'Kitten')
+				if($responseFromServer -match 'Cyber')
 				{
-					$responseFromServer = $responseFromServer -replace 'Kitten', 'Kitten'
+					$responseFromServer = $responseFromServer -replace 'Cyber', 'Kitten'
 				}
 			}
 			
@@ -290,9 +290,9 @@ function Receive-ServerHttpResponse ([System.Net.WebResponse] $response)
 			{
 				
 				$outdataReplace = [System.Text.Encoding]::UTF8.GetString($outdata)
-				if($outdataReplace -match 'Kitten')
+				if($outdataReplace -match 'Cyber')
 				{
-					$outdataReplace = $outdataReplace -Replace 'Kitten', 'Kitten' 
+					$outdataReplace = $outdataReplace -Replace 'Cyber', 'Kitten' 
 					$outdata = [System.Text.Encoding]::UTF8.GetBytes($outdataReplace)
 				}
 				
@@ -597,3 +597,4 @@ function Main()
 }
 
 Main
+
