@@ -11,8 +11,8 @@ Author: Casey Smith, Twitter: @subTee
 License: BSD 3-Clause
 Required Dependencies: None
 Optional Dependencies: None
-Version: 1.3.27
-Release Date: 2029 0926014
+Version: 1.3.28
+Release Date: 1930 0927014
 Deployment: iex (New-Object Net.WebClient).DownloadString(“http://bit.ly/1upejwC”)
 
 .DESCRIPTION
@@ -34,9 +34,24 @@ Default behavior expects no upstream proxy.
 In many environments it will be necessary to chain HTTP(s) requests upstream to another proxy server.  
 This sets the Port for the upstream proxy
 
-.Parameter Tamper
+.PARAMETER Tamper
 
 Sometimes replaces "Cyber" with "Kitten"
+
+.PARAMETER HostCA
+
+This allows remote devices to connect and install the Interceptor Root Certificate Authority
+From the remote/mobile device browse to http://[InterceptorIP]:8082/i.cer
+example: http://192.168.1.1:8082/i.cer
+
+.PARAMETER AutoProxyConfig
+
+This will alter the proxy settings to drive traffic through Interceptor.
+
+.PARAMETER Cleanup
+
+Removes any installed certificates and exits.
+
 
 .EXAMPLE
 
@@ -70,10 +85,63 @@ Param(
   [switch]$Tamper,
   
   [Parameter(Mandatory=$False,Position=4)]
-  [switch]$HostCA
+  [switch]$HostCA,
   
+  [Parameter(Mandatory=$False,Position=5)]
+  [switch]$AutoProxyConfig,
+  
+  [Parameter(Mandatory=$False,Position=6)]
+  [switch]$Cleanup
 )
 
+function Set-AutomaticallyDetectProxySettings ($enable) 
+{ 
+    # Read connection settings from Internet Explorer. 
+    $regKeyPath = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\Connections\" 
+    $conSet = $(Get-ItemProperty $regKeyPath).DefaultConnectionSettings 
+  
+    # Index into DefaultConnectionSettings where the relevant flag resides. 
+    $flagIndex = 8 
+  
+    # Bit inside the relevant flag which indicates whether or not to enable automatically detect proxy settings. 
+    $autoProxyFlag = 8 
+  
+    if ($enable) 
+    { 
+         if ($($conSet[$flagIndex] -band $autoProxyFlag) -eq $autoProxyFlag) 
+        { 
+        } 
+        else 
+        { 
+            Write-Host "Enabling 'Automatically detect proxy settings'." 
+             $conSet[$flagIndex] = $conSet[$flagIndex] -bor $autoProxyFlag 
+            $conSet[4]++ 
+            Set-ItemProperty -Path $regKeyPath -Name DefaultConnectionSettings -Value $conSet 
+         } 
+    } 
+    else 
+    { 
+        if ($($conSet[$flagIndex] -band $autoProxyFlag) -eq $autoProxyFlag) 
+        { 
+            # 'Automatically detect proxy settings' was enabled, adding one disables it. 
+            Write-Host "Disabling 'Automatically detect proxy settings'." 
+            $mask = -bnot $autoProxyFlag 
+             $conSet[$flagIndex] = $conSet[$flagIndex] -band $mask 
+            $conSet[4]++ 
+            Set-ItemProperty -Path $regKeyPath -Name DefaultConnectionSettings -Value $conSet 
+        } 
+    }
+
+     $conSet = $(Get-ItemProperty $regKeyPath).DefaultConnectionSettings 
+        if ($($conSet[$flagIndex] -band $autoProxyFlag) -ne $autoProxyFlag) 
+        { 
+            Write-Host "'Automatically detect proxy settings' is disabled." 
+        } 
+         else 
+        { 
+            Write-Host "'Automatically detect proxy settings' is enabled." 
+        } 
+}
 function Start-CertificateAuthority()
 {
 	#Thanks to @obscuresec for this Web Host
@@ -513,7 +581,11 @@ function Receive-ClientHttpRequest([System.Net.Sockets.TcpClient] $client, [Syst
 
 function Main()
 {	
-	
+	if($Cleanup)
+	{
+		Invoke-RemoveCertificates( "__Interceptor_Trusted_Root" )
+		exit
+	}
 	
 	# Create And Install Trusted Root CA.
 	$CAcertificate = (Get-ChildItem Cert:\LocalMachine\My | Where-Object {$_.Subject -match "__Interceptor_Trusted_Root"  })
@@ -548,7 +620,24 @@ function Main()
 	netsh advfirewall firewall delete rule name="Interceptor Proxy $port" | Out-Null #First Run May Throw Error...Thats Ok..:)
 	netsh advfirewall firewall add rule name="Interceptor Proxy $port" dir=in action=allow protocol=TCP localport=$port | Out-Null
 	
-	#There is are issues in Windows 8.1 with Loopback Isolation, IE EPM, and RC4 Cipher.
+	if($AutoProxyConfig)
+	{
+		#TODO - Map Existing Proxy Settings, for transparent upstream chaining
+		# 
+		$proxyServerToDefine = "localhost:$port"
+
+		$regKey="HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings" 
+		
+		Set-AutomaticallyDetectProxySettings ($false) 
+			
+		Set-ItemProperty -path $regKey ProxyEnable -value 1 
+		Set-ItemProperty -path $regKey ProxyServer -value $proxyServerToDefine 
+		Write-Host "Proxy is now enabled" 
+		 
+	}
+	
+	
+	#There are issues in Windows 8.1 with Loopback Isolation, IE EPM, and RC4 Cipher.
 	if ((Get-WmiObject Win32_OperatingSystem).Version -match "6.3")
 	{
 		CheckNetIsolation LoopbackExempt -a -n=windows_ie_ac_001
@@ -558,16 +647,12 @@ function Main()
 		$value = Get-ItemProperty -Path $Keypath -Name "Isolation"  -ErrorAction SilentlyContinue
 		Set-ItemProperty -Path $Keypath -Name "Isolation" -Value "PMIL"
 		#Disable RC4 Cipher 
-		md "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 128" | Out-Null
-		md "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 128/128" | Out-Null
-		new-itemproperty -path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 128/128" -name "Enabled" -value 0 -PropertyType "Dword" | Out-Null
+		md "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 128" -ErrorAction SilentlyContinue
+		md "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 128/128" -ErrorAction SilentlyContinue
+		new-itemproperty -path "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 128/128" `
+		-name "Enabled" -value 0 -PropertyType "Dword" -ErrorAction SilentlyContinue
+		
 	}
-	
-	$listener.Start()
-	[Console]::WriteLine("Listening on $port")
-	$client = New-Object System.Net.Sockets.TcpClient
-	$client.NoDelay = $true
-	
 	
 	if($ProxyServer)
 	{
@@ -581,7 +666,13 @@ function Main()
 		[Console]::WriteLine("Using Direct Internet Connection")
 	}
 		
-		
+	
+	$listener.Start()
+	[Console]::WriteLine("Listening on $port")
+	$client = New-Object System.Net.Sockets.TcpClient
+	$client.NoDelay = $true
+	
+	
 	
 	while($true)
 	{
