@@ -3,7 +3,7 @@ Interceptor
 
 PowerShell HTTP(s) Intercepting Proxy
 
-Requires Local Administrative Permissions, and Manual Proxy Configuration
+Requires Local Administrative Permissions
 
 Created By Casey Smith @subTee
 
