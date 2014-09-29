@@ -62,7 +62,6 @@ Interceptor.ps1 -HostCA
 .NOTES
 This script attempts to make SSL MITM accessible, by being a small compact proof of concept script.  
 It can be used to demonstrate the effects of malicious software. 
-This script requires that you manually change your Browser Proxy Settings to direct traffic to Interceptor. 
 It will install Certificates in your Trusted Root Store.  Use at your own risk :)
 
 .LINK
